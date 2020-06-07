@@ -74,7 +74,7 @@ namespace TeamsHassBridge
                 status.TeamsIdle = false;
             else if (line.Contains("Machine is locked"))
                 status.TeamsIdle = true;
-            else if (line.Contains("Machine has been idle for"))
+            else if (line.Contains("Machine has been idle for") && !status.TeamsIdle.HasValue) // Machine Locking / Unlocking should always trump idle time
             {
                 var regex = new Regex("Machine has been idle for ([0-9]*(\\.[0-9]*)?) seconds");
                 var match = regex.Match(line);
