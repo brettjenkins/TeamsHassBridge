@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -56,6 +57,14 @@ namespace TeamsHassBridge
             await SendUpdate(LastStatus, true);
         }
 
+        private static DateTimeOffset GetDate(string line)
+        {
+            var dateTimeRegex = new Regex("(.*)\\(");
+            var dateTimeMatches = dateTimeRegex.Match(line);
+            return DateTime.ParseExact(dateTimeMatches.Groups[1].Value.Trim(), "ddd MMM dd yyyy HH:mm:ss 'GMT'K", CultureInfo.InvariantCulture);
+        }
+
+        private static bool _isMachineLocked = false;
         private static async Task ReadLine(string line)
         {
             Debug.WriteLine(line);
@@ -71,17 +80,27 @@ namespace TeamsHassBridge
             else if (line.Contains("Removing NewActivity"))            
                 status.TeamsUnread = false;      
             else if (line.Contains("Machine is unlocked"))
-                status.TeamsIdle = false;
+                status.TeamsIdle = _isMachineLocked = false;
             else if (line.Contains("Machine is locked"))
-                status.TeamsIdle = true;
-            else if (line.Contains("Machine has been idle for") && !status.TeamsIdle.HasValue) // Machine Locking / Unlocking should always trump idle time
+                status.TeamsIdle = _isMachineLocked = true;
+            else if (line.Contains("Machine has been idle for") && !_isMachineLocked) // Machine Locking / Unlocking should always trump idle time
             {
                 var regex = new Regex("Machine has been idle for ([0-9]*(\\.[0-9]*)?) seconds");
                 var match = regex.Match(line);
                 if (match.Success)
                 {
                     var secondsIdle = double.Parse(match.Groups[1].Value);
-                    Console.WriteLine($"Idle for {secondsIdle}");
+                    Console.WriteLine($"{GetDate(line):yyyy-MM-dd HH:mm:ss} Idle for {secondsIdle}");
+                    status.TeamsIdle = secondsIdle > TeamsIdleTimeSecs;
+                }
+            }else if (line.Contains(("inactiveTime:")) && !_isMachineLocked)
+            {
+                var regex = new Regex("inactiveTime: ([0-9]*(\\.[0-9]*)?)");
+                var match = regex.Match(line);
+                if (match.Success)
+                {
+                    var secondsIdle = double.Parse(match.Groups[1].Value);
+                    Console.WriteLine($"{GetDate(line):yyyy-MM-dd HH:mm:ss} Idle for {secondsIdle}");
                     status.TeamsIdle = secondsIdle > TeamsIdleTimeSecs;
                 }
             }
