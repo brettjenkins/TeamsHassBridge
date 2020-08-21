@@ -118,7 +118,7 @@ namespace TeamsHassBridge
              
              */
             
-            if (line.Contains("-- info -- Added"))
+            if (line.Contains("-- info -- StatusIndicatorStateService: Added"))
             {
                 var regex = new Regex("Added (.*?) \\(current state");
                 var match = regex.Match(line);
